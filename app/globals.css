@@ -1,26 +1,73 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --slate-950: #0b1220;
+  --slate-900: #0f172a;
+  --slate-850: #141e33;
+  --slate-800: #1e293b;
+  --slate-700: #334155;
+  --slate-600: #475569;
+
+  --ink: #e2e8f0;
+  --muted: #94a3b8;
+
+  --line: #eef5ee;
+  --home-blue: #1d4ed8;
+  --home-red: #dc2626;
+
+  --accent: #38bdf8;
+  --add: #16a34a;
+  --danger: #ef4444;
+  --draw-yellow: #facc15;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-display);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  background:
+    radial-gradient(1100px 700px at 50% -15%, #16243d 0%, transparent 60%),
+    var(--slate-950);
+  color: var(--ink);
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+.font-display {
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+}
+
+.tnum {
+  font-feature-settings: "tnum" 1;
+}
+
+/* Surfaces where pointer-dragging must not pan/scroll/select the page. */
+.no-pan {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Thin scrollbars in the rails */
+.thin-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--slate-700) transparent;
+}
+.thin-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.thin-scroll::-webkit-scrollbar-thumb {
+  background: var(--slate-700);
+  border-radius: 9999px;
 }

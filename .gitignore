@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local agent / editor tooling (not part of the app)
+.claude/
+.gstack/
