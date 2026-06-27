@@ -109,6 +109,18 @@ function Icon({ name, size = 18 }: { name: string; size?: number }) {
           <path d="M5 12h14" />
         </svg>
       );
+    case "chevron-left":
+      return (
+        <svg {...c}>
+          <path d="M15 6l-6 6 6 6" />
+        </svg>
+      );
+    case "chevron-right":
+      return (
+        <svg {...c}>
+          <path d="M9 6l6 6-6 6" />
+        </svg>
+      );
     default:
       return null;
   }
@@ -330,6 +342,8 @@ export default function TacticsBoard() {
   const [situationsOpen, setSituationsOpen] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [mobileTab, setMobileTab] = useState<Side>("home");
+  const [awayOpen, setAwayOpen] = useState(true);
+  const [homeOpen, setHomeOpen] = useState(true);
 
   const board = doc.board;
   const canUndo = doc.past.length > 0;
@@ -605,7 +619,7 @@ export default function TacticsBoard() {
   const moveActive = tool === "move";
 
   /* ---- rail (used in desktop asides + mobile tabs) ---- */
-  const renderRail = (side: Side) => {
+  const renderRail = (side: Side, onCollapse?: () => void) => {
     const isHome = side === "home";
     const squad = board.players.filter((p) => p.side === side).sort((a, z) => a.number - z.number);
     const bench = squad.filter((p) => !p.pos);
@@ -614,8 +628,20 @@ export default function TacticsBoard() {
     return (
       <div className="flex h-full flex-col gap-3">
         <div>
-          <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-            {isHome ? "Your Team" : "Opposition"}
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+              {isHome ? "Your Team" : "Opposition"}
+            </span>
+            {onCollapse && (
+              <button
+                onClick={onCollapse}
+                title="Collapse panel"
+                aria-label="Collapse panel"
+                className="-mr-1 rounded p-1 text-[var(--muted)] transition hover:bg-[var(--slate-700)] hover:text-[var(--ink)]"
+              >
+                <Icon name={isHome ? "chevron-right" : "chevron-left"} size={16} />
+              </button>
+            )}
           </div>
           <input
             value={isHome ? board.homeName : board.awayName}
@@ -816,9 +842,23 @@ export default function TacticsBoard() {
 
       {/* body */}
       <div className="flex min-h-0 flex-1">
-        <aside className="hidden w-48 shrink-0 flex-col border-r border-[var(--slate-700)] bg-[var(--slate-900)]/50 p-3 md:flex lg:w-60">
-          {renderRail("away")}
-        </aside>
+        {awayOpen ? (
+          <aside className="hidden w-48 shrink-0 flex-col border-r border-[var(--slate-700)] bg-[var(--slate-900)]/50 p-3 md:flex lg:w-60">
+            {renderRail("away", () => setAwayOpen(false))}
+          </aside>
+        ) : (
+          <button
+            onClick={() => setAwayOpen(true)}
+            title="Show opposition panel"
+            aria-label="Show opposition panel"
+            className="hidden w-10 shrink-0 flex-col items-center gap-3 border-r border-[var(--slate-700)] bg-[var(--slate-900)]/50 py-3 text-[var(--muted)] transition hover:bg-[var(--slate-800)] hover:text-[var(--ink)] md:flex"
+          >
+            <Icon name="chevron-right" size={18} />
+            <span className="select-none text-[10px] font-semibold uppercase tracking-wider [writing-mode:vertical-rl]">
+              Opposition
+            </span>
+          </button>
+        )}
 
         <main className="relative flex min-w-0 flex-1 flex-col items-stretch p-2 sm:p-3">
           {board.caption && (
@@ -962,9 +1002,23 @@ export default function TacticsBoard() {
           </div>
         </main>
 
-        <aside className="hidden w-48 shrink-0 flex-col border-l border-[var(--slate-700)] bg-[var(--slate-900)]/50 p-3 md:flex lg:w-60">
-          {renderRail("home")}
-        </aside>
+        {homeOpen ? (
+          <aside className="hidden w-48 shrink-0 flex-col border-l border-[var(--slate-700)] bg-[var(--slate-900)]/50 p-3 md:flex lg:w-60">
+            {renderRail("home", () => setHomeOpen(false))}
+          </aside>
+        ) : (
+          <button
+            onClick={() => setHomeOpen(true)}
+            title="Show your team panel"
+            aria-label="Show your team panel"
+            className="hidden w-10 shrink-0 flex-col items-center gap-3 border-l border-[var(--slate-700)] bg-[var(--slate-900)]/50 py-3 text-[var(--muted)] transition hover:bg-[var(--slate-800)] hover:text-[var(--ink)] md:flex"
+          >
+            <Icon name="chevron-left" size={18} />
+            <span className="select-none text-[10px] font-semibold uppercase tracking-wider [writing-mode:vertical-rl]">
+              Your Team
+            </span>
+          </button>
+        )}
       </div>
 
       {/* mobile bench panel */}
