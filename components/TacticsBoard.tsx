@@ -121,6 +121,18 @@ function Icon({ name, size = 18 }: { name: string; size?: number }) {
           <path d="M9 6l6 6-6 6" />
         </svg>
       );
+    case "chevron-down":
+      return (
+        <svg {...c}>
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      );
+    case "chevron-up":
+      return (
+        <svg {...c}>
+          <path d="M6 15l6-6 6 6" />
+        </svg>
+      );
     default:
       return null;
   }
@@ -187,36 +199,39 @@ function ActionButton({
 /* ------------------------------- pitch art ------------------------------- */
 
 const B = 16; // dark border ("boards") thickness
-const TX = B;
-const TY = B;
-const TW = PW - 2 * B;
-const TH = PH - 2 * B;
 
-function PitchMarkings() {
-  const cx = PW / 2;
-  const cy = PH / 2;
-  const goalW = 168;
+// Drawn at whatever box size it's given (wide on desktop, tall on mobile);
+// goals are always on the top & bottom edges so attack is up/down.
+function PitchMarkings({ w, h }: { w: number; h: number }) {
+  const tx = B;
+  const ty = B;
+  const tw = w - 2 * B;
+  const th = h - 2 * B;
+  const cx = w / 2;
+  const cy = h / 2;
+  const goalW = w * 0.187;
   const goalD = 26;
+  const rCircle = w * 0.082;
   const stripes = 8;
-  const bandH = TH / stripes;
+  const bandH = th / stripes;
   return (
     <g pointerEvents="none">
       {/* boards frame */}
-      <rect x={0} y={0} width={PW} height={PH} rx={26} fill="#0c1a12" />
+      <rect x={0} y={0} width={w} height={h} rx={26} fill="#0c1a12" />
       {/* turf + mow stripes (clipped to a rounded rect) */}
       <defs>
         <clipPath id="turf">
-          <rect x={TX} y={TY} width={TW} height={TH} rx={14} />
+          <rect x={tx} y={ty} width={tw} height={th} rx={14} />
         </clipPath>
       </defs>
       <g clipPath="url(#turf)">
-        <rect x={TX} y={TY} width={TW} height={TH} fill="#2f8a3e" />
+        <rect x={tx} y={ty} width={tw} height={th} fill="#2f8a3e" />
         {Array.from({ length: stripes }).map((_, i) => (
           <rect
             key={i}
-            x={TX}
-            y={TY + i * bandH}
-            width={TW}
+            x={tx}
+            y={ty + i * bandH}
+            width={tw}
             height={bandH}
             fill={i % 2 === 0 ? "#33954420" : "#2a7d3700"}
           />
@@ -225,14 +240,14 @@ function PitchMarkings() {
 
       {/* white markings */}
       <g stroke="var(--line)" strokeWidth={3} fill="none" opacity={0.92}>
-        <rect x={TX} y={TY} width={TW} height={TH} rx={14} />
-        <line x1={TX} y1={cy} x2={TX + TW} y2={cy} />
-        <circle cx={cx} cy={cy} r={74} />
+        <rect x={tx} y={ty} width={tw} height={th} rx={14} />
+        <line x1={tx} y1={cy} x2={tx + tw} y2={cy} />
+        <circle cx={cx} cy={cy} r={rCircle} />
       </g>
       <circle cx={cx} cy={cy} r={5} fill="var(--line)" opacity={0.92} />
 
       {/* goals (top + bottom), opening into the pitch */}
-      {[TY, TY + TH - goalD].map((gy, gi) => (
+      {[ty, ty + th - goalD].map((gy, gi) => (
         <g key={gi} stroke="var(--line)" strokeWidth={3} fill="rgba(255,255,255,0.10)">
           <rect x={cx - goalW / 2} y={gy} width={goalW} height={goalD} />
           <g strokeWidth={1} opacity={0.5}>
@@ -344,6 +359,8 @@ export default function TacticsBoard() {
   const [mobileTab, setMobileTab] = useState<Side>("home");
   const [awayOpen, setAwayOpen] = useState(true);
   const [homeOpen, setHomeOpen] = useState(true);
+  const [drawerOpen, setDrawerOpen] = useState(true);
+  const [portrait, setPortrait] = useState(false);
 
   const board = doc.board;
   const canUndo = doc.past.length > 0;
@@ -358,6 +375,15 @@ export default function TacticsBoard() {
   useEffect(() => {
     if (ready) saveBoard(board);
   }, [board, ready]);
+
+  // Rotate the board to portrait on narrow screens (matches the mobile layout breakpoint).
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const update = () => setPortrait(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
 
   /* ---- state mutators ---- */
   const commit = (fn: (b: BoardState) => BoardState) =>
@@ -381,6 +407,32 @@ export default function TacticsBoard() {
     }
   };
 
+  // Positions are stored in one canonical space (PW×PH, wide). On portrait
+  // phones we render into a TALL box (goals still top/bottom) by rescaling each
+  // axis; tokens are drawn at the rescaled point so circles/text stay un-warped.
+  const VW = portrait ? 600 : PW;
+  const VH = portrait ? 900 : PH;
+  const PAD = portrait ? 76 : VIEW_PAD;
+  const fCW = PW - 2 * B;
+  const fCH = PH - 2 * B;
+  const fVW = VW - 2 * B;
+  const fVH = VH - 2 * B;
+  const cToV = (p: Pos): Pos =>
+    portrait ? { x: B + (p.x - B) * (fVW / fCW), y: B + (p.y - B) * (fVH / fCH) } : p;
+  const vToC = (p: Pos): Pos =>
+    portrait ? { x: B + (p.x - B) * (fCW / fVW), y: B + (p.y - B) * (fCH / fVH) } : p;
+  const mapShape = (s: Shape): Shape => {
+    if (!portrait) return s;
+    if (s.kind === "x") return { ...s, ...cToV({ x: s.x, y: s.y }) };
+    if (s.kind === "circle") {
+      const c = cToV({ x: s.x, y: s.y });
+      return { ...s, x: c.x, y: c.y, r: s.r * (fVW / fCW) };
+    }
+    const a = cToV({ x: s.x1, y: s.y1 });
+    const b = cToV({ x: s.x2, y: s.y2 });
+    return { ...s, x1: a.x, y1: a.y, x2: b.x, y2: b.y };
+  };
+
   /* ---- coordinate helpers ---- */
   const toUnits = (clientX: number, clientY: number): Pos => {
     const svg = svgRef.current;
@@ -388,7 +440,7 @@ export default function TacticsBoard() {
     const ctm = svg.getScreenCTM();
     if (!ctm) return { x: 0, y: 0 };
     const p = new DOMPoint(clientX, clientY).matrixTransform(ctm.inverse());
-    return { x: p.x, y: p.y };
+    return vToC({ x: p.x, y: p.y });
   };
   const pointInPitch = (clientX: number, clientY: number) => {
     const svg = svgRef.current;
@@ -862,12 +914,14 @@ export default function TacticsBoard() {
 
         <main className="relative flex min-w-0 flex-1 flex-col items-stretch p-2 sm:p-3">
           {board.caption && (
-            <div className="mb-2 flex items-center gap-3 rounded-lg border border-[var(--slate-700)] bg-[var(--slate-850)] px-3 py-2">
-              <span className="font-display font-semibold text-[var(--accent)]">{board.caption.title}</span>
-              <span className="text-sm text-[var(--ink)]">{board.caption.text}</span>
+            <div className="mb-2 flex items-start gap-2 rounded-lg border border-[var(--slate-700)] bg-[var(--slate-850)] px-3 py-1.5">
+              <p className="min-w-0 text-sm leading-snug text-[var(--ink)]">
+                <span className="font-display font-semibold text-[var(--accent)]">{board.caption.title}.</span>{" "}
+                {board.caption.text}
+              </p>
               <button
                 onClick={clearCaption}
-                className="ml-auto rounded p-1 text-[var(--muted)] hover:bg-[var(--slate-700)] hover:text-[var(--ink)]"
+                className="ml-auto shrink-0 rounded p-1 text-[var(--muted)] hover:bg-[var(--slate-700)] hover:text-[var(--ink)]"
                 aria-label="Clear caption"
               >
                 ✕
@@ -878,7 +932,7 @@ export default function TacticsBoard() {
           <div className="relative flex min-h-0 w-full flex-1 items-center justify-center">
             <svg
               ref={svgRef}
-              viewBox={`${-VIEW_PAD} ${-VIEW_PAD} ${PW + 2 * VIEW_PAD} ${PH + 2 * VIEW_PAD}`}
+              viewBox={`${-PAD} ${-PAD} ${VW + 2 * PAD} ${VH + 2 * PAD}`}
               preserveAspectRatio="xMidYMid meet"
               className="no-pan h-full w-full"
               onPointerMove={onSvgMove}
@@ -899,31 +953,31 @@ export default function TacticsBoard() {
                 </marker>
               </defs>
 
-              <PitchMarkings />
+              <PitchMarkings w={VW} h={VH} />
 
               {/* draw / deselect surface (below tokens) — covers the out-of-play margin too */}
               <rect
-                x={-VIEW_PAD}
-                y={-VIEW_PAD}
-                width={PW + 2 * VIEW_PAD}
-                height={PH + 2 * VIEW_PAD}
+                x={-PAD}
+                y={-PAD}
+                width={VW + 2 * PAD}
+                height={VH + 2 * PAD}
                 fill="transparent"
                 onPointerDown={onSurfaceDown}
                 style={{ cursor: moveActive ? "default" : "crosshair" }}
               />
 
               {/* committed drawings */}
-              <g pointerEvents="none">{board.shapes.map((s) => renderShape(s, s.id))}</g>
+              <g pointerEvents="none">{board.shapes.map((s) => renderShape(mapShape(s), s.id))}</g>
               {/* live preview */}
-              {preview && <g pointerEvents="none">{renderShape(preview, "preview", 0.75)}</g>}
+              {preview && <g pointerEvents="none">{renderShape(mapShape(preview), "preview", 0.75)}</g>}
 
-              {/* players */}
+              {/* players — positioned in the (possibly tall) view space */}
               {board.players
                 .filter((p) => p.pos)
                 .map((p) => (
                   <PitchPlayer
                     key={p.id}
-                    player={p}
+                    player={portrait ? { ...p, pos: cToV(p.pos!) } : p}
                     awayColor={board.awayColor}
                     awayStyle={board.awayStyle}
                     selected={p.id === selectedId}
@@ -936,7 +990,7 @@ export default function TacticsBoard() {
 
               {/* ball */}
               <PitchBall
-                ball={board.ball}
+                ball={portrait ? cToV(board.ball) : board.ball}
                 dragging={activeDrag?.kind === "ball"}
                 pointerActive={moveActive}
                 onPointerDown={onBallDown}
@@ -1021,22 +1075,43 @@ export default function TacticsBoard() {
         )}
       </div>
 
-      {/* mobile bench panel */}
+      {/* mobile bench panel — collapsible drawer */}
       <div className="border-t border-[var(--slate-700)] bg-[var(--slate-900)] md:hidden">
-        <div className="flex">
-          {(["home", "away"] as const).map((s) => (
-            <button
-              key={s}
-              onClick={() => setMobileTab(s)}
-              className={`flex-1 py-2 text-sm font-semibold transition ${
-                mobileTab === s ? "border-b-2 border-[var(--accent)] text-[var(--ink)]" : "text-[var(--muted)]"
-              }`}
-            >
-              {s === "home" ? "Your Team" : "Opposition"}
-            </button>
-          ))}
-        </div>
-        <div className="max-h-[40vh] overflow-auto p-3 thin-scroll">{renderRail(mobileTab)}</div>
+        {drawerOpen ? (
+          <>
+            <div className="flex items-center">
+              {(["home", "away"] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setMobileTab(s)}
+                  className={`flex-1 py-2 text-sm font-semibold transition ${
+                    mobileTab === s ? "border-b-2 border-[var(--accent)] text-[var(--ink)]" : "text-[var(--muted)]"
+                  }`}
+                >
+                  {s === "home" ? "Your Team" : "Opposition"}
+                </button>
+              ))}
+              <button
+                onClick={() => setDrawerOpen(false)}
+                aria-label="Hide panel"
+                title="Hide panel"
+                className="px-3 py-2 text-[var(--muted)] transition hover:text-[var(--ink)]"
+              >
+                <Icon name="chevron-down" size={18} />
+              </button>
+            </div>
+            <div className="max-h-[40vh] overflow-auto p-3 thin-scroll">{renderRail(mobileTab)}</div>
+          </>
+        ) : (
+          <button
+            onClick={() => setDrawerOpen(true)}
+            aria-label="Show players and setup"
+            className="flex w-full items-center justify-center gap-2 py-2.5 text-sm font-semibold text-[var(--muted)] transition hover:text-[var(--ink)]"
+          >
+            <Icon name="chevron-up" size={18} />
+            Players &amp; setup
+          </button>
+        )}
       </div>
 
       {/* drag ghost */}
