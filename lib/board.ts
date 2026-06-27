@@ -26,7 +26,7 @@ export const AWAY_COLORS = [
   { name: "Purple", hex: "#7c3aed" },
 ];
 
-export const DRAW_COLORS = ["#facc15", "#ffffff", "#0f172a", "#38bdf8"];
+export const DRAW_COLORS = ["#facc15", "#ffffff", "#ef4444", "#38bdf8"];
 
 const STORAGE_KEY = "coachboard.v1";
 
